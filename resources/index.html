@@ -1,0 +1,157 @@
+<!-- resources/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP Server - Home</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        h1 { margin-top: 0; }
+        a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            display: inline-block;
+            margin: 5px;
+        }
+        a:hover { background: rgba(255, 255, 255, 0.3); }
+        .file-links {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Multi-threaded HTTP Server</h1>
+        <p>Welcome to your custom HTTP server built with Python!</p>
+        
+        <h2>Navigation</h2>
+        <div>
+            <a href="/">Home</a>
+            <a href="/about.html">About</a>
+            <a href="/contact.html">Contact</a>
+        </div>
+
+        <div class="file-links">
+            <h3>Test File Downloads</h3>
+            <p>Click to download binary files:</p>
+            <a href="/logo.png">Download Logo (PNG)</a>
+            <a href="/photo.jpg">Download Photo (JPG)</a>
+            <a href="/sample.txt">Download Text File</a>
+        </div>
+
+        <p style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
+            Server running on Python • Socket Programming • Multi-threaded
+        </p>
+    </div>
+</body>
+</html>
+
+<!-- resources/about.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - HTTP Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>About This Server</h1>
+        <p>This is a multi-threaded HTTP server implementation featuring:</p>
+        <ul>
+            <li>Socket programming from scratch</li>
+            <li>Thread pool for concurrent connections</li>
+            <li>Binary file transfer support</li>
+            <li>JSON POST request handling</li>
+            <li>Security features (path traversal protection)</li>
+            <li>Keep-alive connection support</li>
+        </ul>
+        <a href="/">Back to Home</a>
+    </div>
+</body>
+</html>
+
+<!-- resources/contact.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact - HTTP Server</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        a {
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Contact Information</h1>
+        <p>This is a demo contact page for testing the HTTP server.</p>
+        <p>Email: demo@httpserver.local</p>
+        <p>GitHub: Your repository link here</p>
+        <a href="/">Back to Home</a>
+    </div>
+</body>
+</html>

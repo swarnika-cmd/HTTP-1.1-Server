@@ -1,0 +1,20 @@
+HTTP Server - Sample Text File
+================================
+
+This is a sample text file for testing binary file downloads.
+
+The server should send this file with:
+- Content-Type: application/octet-stream
+- Content-Disposition: attachment; filename="sample.txt"
+
+This will trigger a download in the browser rather than displaying the text.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod 
+tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+quis nostrud exercitation ullamco laboris.
+
+Special Characters Test: !@#$%^&*()_+-=[]{}|;:'",.<>?/~`
+
+Line breaks and formatting should be preserved exactly.
+
+End of file.

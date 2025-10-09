@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About - HTTP Server</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            color: #333;
+        }
+        h1 {
+            color: #f5576c;
+            margin-top: 0;
+        }
+        .feature-list {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #f093fb;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        a {
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        a:hover {
+            transform: translateY(-2px);
+        }
+        .tech-stack {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        .tech-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ℹ️ About This HTTP Server</h1>
+        <p>This server is a complete implementation of HTTP/1.1 protocol built from scratch using Python's socket library.</p>
+        
+        <h2>✨ Key Features</h2>
+        <div class="feature-list">
+            <ul>
+                <li>🔌 <strong>Raw Socket Programming</strong> - No frameworks, built from TCP sockets</li>
+                <li>🧵 <strong>Thread Pool</strong> - Handles multiple concurrent connections efficiently</li>
+                <li>📦 <strong>Binary File Transfer</strong> - Serves images, documents with integrity</li>
+                <li>📮 <strong>POST Request Handling</strong> - Accepts and processes JSON data</li>
+                <li>🔒 <strong>Security Features</strong> - Path traversal protection, host validation</li>
+                <li>🔄 <strong>Keep-Alive Support</strong> - Persistent connections for better performance</li>
+                <li>⏱️ <strong>Connection Timeouts</strong> - Automatic cleanup of idle connections</li>
+                <li>📊 <strong>Comprehensive Logging</strong> - Detailed request/response tracking</li>
+            </ul>
+        </div>
+
+        <h2>🛠️ Technology Stack</h2>
+        <div class="tech-stack">
+            <span class="tech-badge">Python 3</span>
+            <span class="tech-badge">Socket API</span>
+            <span class="tech-badge">Threading</span>
+            <span class="tech-badge">HTTP/1.1</span>
+            <span class="tech-badge">JSON</span>
+        </div>
+
+        <h2>📖 Learning Objectives</h2>
+        <p>This project demonstrates understanding of:</p>
+        <ul>
+            <li>Network protocols and the OSI model</li>
+            <li>TCP/IP communication</li>
+            <li>HTTP request/response cycle</li>
+            <li>Concurrent programming patterns</li>
+            <li>File I/O and binary data handling</li>
+            <li>Web security fundamentals</li>
+        </ul>
+
+        <a href="/">← Back to Home</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact - HTTP Server</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            color: #333;
+        }
+        h1 {
+            color: #4facfe;
+            margin-top: 0;
+        }
+        .contact-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .contact-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+        .icon {
+            font-size: 1.5em;
+        }
+        a {
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        a:hover {
+            transform: translateY(-2px);
+        }
+        .info-box {
+            background: #e0f2fe;
+            border-left: 4px solid #4facfe;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 Contact Information</h1>
+        <p>Get in touch or check out the project details below.</p>
+        
+        <div class="contact-card">
+            <h2 style="margin-top: 0;">👨‍💻 Project Information</h2>
+            
+            <div class="contact-item">
+                <span class="icon">📧</span>
+                <div>
+                    <strong>Email</strong><br>
+                    your.email@example.com
+                </div>
+            </div>
+            
+            <div class="contact-item">
+                <span class="icon">🐙</span>
+                <div>
+                    <strong>GitHub Repository</strong><br>
+                    github.com/yourusername/http-server-project
+                </div>
+            </div>
+            
+            <div class="contact-item">
+                <span class="icon">🎓</span>
+                <div>
+                    <strong>Course</strong><br>
+                    Computer Networks Assignment
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <strong>📝 Note:</strong> This is a demonstration page for testing the HTTP server's file serving capabilities. Update the contact information above with your actual details!
+        </div>
+
+        <h2>🧪 Testing Instructions</h2>
+        <p>You can test various features of this server:</p>
+        <ul>
+            <li>Navigate between pages using the links</li>
+            <li>Download binary files (images, text files)</li>
+            <li>Send POST requests with JSON data</li>
+            <li>Test concurrent connections</li>
+            <li>Verify security features (path traversal protection)</li>
+        </ul>
+
+        <a href="/">← Back to Home</a>
+    </div>
+</body>
+</html>
