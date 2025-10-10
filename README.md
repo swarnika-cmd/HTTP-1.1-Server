@@ -1,74 +1,73 @@
 Multi-threaded HTTP Server Implementation (Java Sockets)
-This project implements a simplified HTTP/1.1 server from scratch, focusing on low-level TCP socket programming, concurrency management using a thread pool, and adherence to core HTTP protocol specifications (GET/POST, persistent connections, headers, etc.).
+For this project, I built a simple HTTP/1.1 server from scratch using Java sockets. The main goals were to get hands-on experience with low-level TCP socket programming and to manage concurrency properly with a thread pool. I also focused on following some core HTTP specs like handling GET/POST requests, persistent connections, and proper headers.
 
 🚀 Getting Started
-Prerequisites
-Java Development Kit (JDK) 17+
+What You Need
+Java Development Kit (JDK) 17 or higher
 
-The project directory structure must be maintained as follows: [Project Root]/{src, resources/{uploads, index.html, ...}}.
+Make sure your project folder looks like this: [Project Root]/{src, resources/{uploads, index.html, ...}}
 
-Build and Run Instructions
-Navigate to the project root directory:
+How to Build and Run
+Go to your project’s root directory:
 
-Bash
-
+bash
 cd C:\Users\somva\first program\ComputerNetworks\Project
-Compile the source code (using UTF-8 encoding to avoid symbol errors):
+Compile the Java files (I used UTF-8 encoding to avoid weird symbol errors):
 
-Bash
-
+bash
 javac -encoding UTF-8 src/Server.java src/RequestHandler.java
-Run the server: The server accepts up to three command-line arguments: [Port] [Host Address] [Max Thread Pool Size].
+Run the server! You can pass up to three arguments: [Port] [Host Address] [Max Thread Pool Size].
 
-Argument	Default Value	Example
+Here are the defaults and some examples:
+
+Argument	Default	Example
 Port	8080	8000
 Host Address	127.0.0.1	0.0.0.0
 Max Threads	10	20
-Example Run Command:
+Example command line:
 
-Bash
-
+bash
 java -cp src Server 8000 0.0.0.0 20
-(Press Ctrl+C to stop the server.)
+(Press Ctrl+C to stop the server when you want.)
 
-🛠️ Implementation Deep Dive
-Thread Pool Architecture (Concurrency)
-To handle multiple clients simultaneously, I opted to use the standard Java library's ExecutorService (Executors.newFixedThreadPool).
+🛠️ What I Added / Improved
+I added a monitor thread that logs the thread pool status every 30 seconds to keep track of how busy the server is.
 
-Fixed Pool Size: This approach ensures the server strictly limits resource usage to the configured maximum thread count (default: 10), preventing the machine from being overwhelmed by a high number of requests.
+The server now prints timestamps on logs for all major events like startup, connections, queue warnings, and shutdown.
 
-Automatic Queueing: When all worker threads are busy, the ExecutorService automatically places new client connections into an internal, thread-safe queue. This satisfies the requirement for connections to wait when the pool is saturated, without the need to manually implement locking mechanisms (like mutexes or condition variables) on the queue itself.
+If the server gets too busy and the thread pool queue is full (over 50 connections waiting), it sends a 503 Service Unavailable response instead of crashing or blocking.
 
-The Worker: Each client connection is handled by a RequestHandler task, which is assigned to an available thread.
+I included a graceful shutdown hook so the server cleans up resources properly when stopped.
 
-Binary Transfer Implementation
-Handling images (.png, .jpg) and text files (.txt) required careful use of Java's low-level I/O to ensure data integrity.
+You can customize the port, host address, and max threads easily before starting the server.
 
-Binary Mode: All supported file types are read using a FileInputStream and transferred as a raw byte stream, which is crucial for preventing data corruption in binary files.
+Overloaded requests get a helpful 503 error with a Retry-After timeout to avoid spamming the server.
 
-Chunked Transfer: Data is streamed in 8KB chunks (byte[] buffer = new byte[8192]) rather than reading the whole file into memory, improving performance and reducing memory overhead, especially for large image files.
+💡 How It Works
+Thread Pool Handling
+I decided to use Java's ThreadPoolExecutor to manage concurrency because it lets me monitor and control the threads better. This way, my server limits active connections to a safe max and queues up excess requests.
 
-Download Trigger: The response headers explicitly include Content-Type: application/octet-stream and the Content-Disposition: attachment header to force the browser to download the file instead of attempting to render the raw binary data inline.
+Transferring Files
+The server streams files (like images and text) in chunks of 8KB instead of loading whole files into memory. This helps with performance and prevents memory issues.
 
-Connection Management (Keep-Alive)
-The server supports persistent HTTP/1.1 connections:
+Connection Management
+Connections stay alive by default unless the client says otherwise. There’s a 30-second timeout on idle sockets, and I limit clients to 100 requests per connection to keep things fair.
 
-The connection defaults to keep-alive unless the client explicitly sends Connection: close.
+🔒 Security Stuff
+I made sure to block path traversal attacks by checking requested file paths carefully.
 
-A loop inside the RequestHandler keeps the socket open to process subsequent requests from the same client.
+The server rejects requests that don’t have the right Host header matching the running server address, so no sneaky cross-domain requests sneak through.
 
-Timeout: The socket is set with a 30-second timeout (clientSocket.setSoTimeout(30000)). If no data is received within this time, the connection is closed (Requirement 8).
+⚠️ Things I Know Could Be Better
+JSON validation is basic, just checking for simple structure, not full schema validation.
 
-Limit: Connections are closed after 100 requests to prevent resource monopolization.
+Error pages are simple HTML, nothing fancy for now.
 
-🔒 Security Measures
-Security was a primary concern in the request handling logic:
+📋 Summary of Changes
+Thread pool monitoring and logging with timestamps.
 
-Path Traversal Protection: This was the most critical security step. Before accessing any file, the requested path is canonicalized using File.getCanonicalPath() and compared against the canonical path of the resources directory. Any attempt to access files outside this directory (e.g., using ../etc/passwd) immediately triggers a 403 Forbidden response.
+Clean server shutdown handling.
 
-Host Header Validation: All requests must include a Host header that matches the server's running address (e.g., 127.0.0.1:8080). Missing or mismatched headers result in 400 Bad Request or 403 Forbidden, preventing requests meant for other domains from being processed.
+Smarter rejection of extra connections with 503 responses.
 
-⚠️ Known Limitations
-JSON Validation: The server performs only a basic check for JSON structure (starts with { and ends with }). Full, robust JSON schema validation would require integrating a dedicated JSON parsing library.
-
-Error Handling: The current implementation uses simple HTML for error pages. A production-ready server would use standardized, configurable error templates.
+Clearer log messages for queue status and incoming connections.
