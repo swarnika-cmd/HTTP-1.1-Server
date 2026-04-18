@@ -47,7 +47,7 @@ RequestHandler (per thread)
 git clone https://github.com/swarnika-cmd/HTTP-1.1-Server.git
 cd HTTP-1.1-Server
 javac -d out src/**/*.java
-java -cp out Main
+java -cp out Server
 # Server starts on localhost:8080
 ```
 
