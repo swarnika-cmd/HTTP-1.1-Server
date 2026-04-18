@@ -16,7 +16,6 @@ Most developers use HTTP every day without understanding what actually happens b
 - **RFC 2616 compliant** request parsing — handles GET and POST with proper header parsing
 - **Chunked file streaming** — serves files in 8KB chunks to keep memory usage flat regardless of file size
 - **Connection pooling** — persistent connections with `keep-alive` support
-- **Custom thread pool architecture** — built from scratch to understand scheduling tradeoffs
 
 ---
 
@@ -33,9 +32,11 @@ ThreadPoolExecutor
         │  submits Runnable per connection
         ▼
 RequestHandler (per thread)
-    ├── RequestParser      → parses raw bytes into method/path/headers/body
-    ├── Router             → maps path to handler
-    └── ResponseWriter     → builds and flushes HTTP response bytes
+    ├── parseHeaders()
+    ├── validateHost()
+    ├── handleGetRequest()
+    ├── handlePostRequest()
+    └── sendErrorResponse()
 ```
 
 ---
@@ -43,8 +44,8 @@ RequestHandler (per thread)
 ## Quick start
 
 ```bash
-git clone https://github.com/swarnika-cmd/http-server-java
-cd http-server-java
+git clone https://github.com/swarnika-cmd/HTTP-1.1-Server.git
+cd HTTP-1.1-Server
 javac -d out src/**/*.java
 java -cp out Main
 # Server starts on localhost:8080

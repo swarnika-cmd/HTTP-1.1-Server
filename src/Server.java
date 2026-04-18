@@ -117,8 +117,8 @@ public class Server {
     }
     
     /**
-     * thiis Starts a daemon thread to monitor thread pool status every 30 seconds
-     * Reequirement 10: Thread Pool Status Logging
+     * This starts a daemon thread to monitor thread pool status every 30 seconds
+     * Requirement 10: Thread Pool Status Logging
      */
     private static void startMonitoringThread() {
         Thread monitoringThread = new Thread(() -> {

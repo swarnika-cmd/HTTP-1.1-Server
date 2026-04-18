@@ -11,6 +11,7 @@ public class RequestHandler implements Runnable {
     private int requestsHandled = 0;
     private static final int MAX_REQUESTS = 100;
     private static final int TIMEOUT_SECONDS = 30;
+    private static final boolean DEBUG = false;
 
     public RequestHandler(Socket clientSocket, String hostValidationTarget, ExecutorService threadPool) {
         this.clientSocket = clientSocket;
@@ -62,10 +63,19 @@ public class RequestHandler implements Runnable {
                 if ("GET".equals(method)) {
                     handleGetRequest(path, out, httpVersion, connectionHeader);
                 } else if ("POST".equals(method)) {
-                    // Read request body (up to 8192 bytes limit not explicitly enforced here, but covered by Content-Length)
-                    char[] bodyBuffer = new char[(int) Math.min(contentLength, 8192)]; 
-                    in.read(bodyBuffer, 0, (int) contentLength);
-                    String requestBody = new String(bodyBuffer);
+                    // Read request body
+                    int bufferSize = (int) Math.min(contentLength, 8192);
+                    char[] bodyBuffer = new char[bufferSize]; 
+                    StringBuilder requestBodyBuilder = new StringBuilder();
+                    int totalRead = 0;
+                    int toRead = (int) contentLength;
+                    while (totalRead < toRead) {
+                        int charsRead = in.read(bodyBuffer, 0, Math.min(bodyBuffer.length, toRead - totalRead));
+                        if (charsRead == -1) break; // End of stream reached prematurely
+                        requestBodyBuilder.append(bodyBuffer, 0, charsRead);
+                        totalRead += charsRead;
+                    }
+                    String requestBody = requestBodyBuilder.toString();
                     handlePostRequest(path, headers, requestBody, out, httpVersion, connectionHeader);
                 } else {
                     // 405 Method Not Allowed
@@ -145,8 +155,10 @@ public class RequestHandler implements Runnable {
         
         if ("/".equals(path)) path = "/index.html";
 
-        System.out.printf("[%s] [Thread-%d] DEBUG: Original path: %s%n", Server.getTimeStamp(), threadId, path);
-        System.out.printf("[%s] [Thread-%d] DEBUG: Resources dir: %s%n", Server.getTimeStamp(), threadId, Server.RESOURCES_DIR);
+        if (DEBUG) {
+            System.out.printf("[%s] [Thread-%d] DEBUG: Original path: %s%n", Server.getTimeStamp(), threadId, path);
+            System.out.printf("[%s] [Thread-%d] DEBUG: Resources dir: %s%n", Server.getTimeStamp(), threadId, Server.RESOURCES_DIR);
+        }
 
         // 1. Path Traversal Protection (Requirement 7)
         File requestedFile = new File(Server.RESOURCES_DIR + File.separator + path.substring(1));
@@ -237,9 +249,11 @@ public class RequestHandler implements Runnable {
         System.out.printf("[%s] [Thread-%d] Response: 200 OK (%d bytes transferred)%n", Server.getTimeStamp(), threadId, fileSize);
 
         ///extra lines to check:
-        System.out.printf("[%s] [Thread-%d] DEBUG: Requested file path: %s%n", Server.getTimeStamp(), threadId, requestedFile.getPath());
-        System.out.printf("[%s] [Thread-%d] DEBUG: File exists: %s%n", Server.getTimeStamp(), threadId, requestedFile.exists());
-        System.out.printf("[%s] [Thread-%d] DEBUG: File absolute path: %s%n", Server.getTimeStamp(), threadId, requestedFile.getAbsolutePath());
+        if (DEBUG) {
+            System.out.printf("[%s] [Thread-%d] DEBUG: Requested file path: %s%n", Server.getTimeStamp(), threadId, requestedFile.getPath());
+            System.out.printf("[%s] [Thread-%d] DEBUG: File exists: %s%n", Server.getTimeStamp(), threadId, requestedFile.exists());
+            System.out.printf("[%s] [Thread-%d] DEBUG: File absolute path: %s%n", Server.getTimeStamp(), threadId, requestedFile.getAbsolutePath());
+        }
     }
 
     // =============================== POST Handlers ===============================
@@ -329,7 +343,7 @@ public class RequestHandler implements Runnable {
             "Connection: close\r\n" + // Errors typically close connection
             "\r\n" +
             "%s",
-            httpVersion, statusCode, statusText, htmlBody.length(), 
+            httpVersion, statusCode, statusText, htmlBody.getBytes("UTF-8").length, 
             getRfc1123Date(), Server.SERVER_NAME,
             htmlBody
         );
