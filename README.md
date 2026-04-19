@@ -58,12 +58,44 @@ java -cp out Server
 curl -v http://localhost:8080/
 
 # POST with body
-curl -v -X POST http://localhost:8080/echo \
-  -H "Content-Type: text/plain" \
-  -d "hello world"
+curl -v -X POST http://localhost:8080/upload \
+  -H "Content-Type: application/json" \
+  -d "{\"key\":\"value\"}"
 
 # Fetch a file (streamed in 8KB chunks)
-curl -v http://localhost:8080/files/sample.txt
+curl -v http://localhost:8080/sample.txt
+```
+
+---
+
+## Testing
+
+This project includes a fully automated **Integration Test Suite** built with zero external dependencies (no Maven/JUnit required). It uses Java 11's natively included `HttpClient` to boot up the server on an ephemeral port and assert real HTTP workflows.
+
+To run the automated test suite locally:
+
+**On Mac/Linux:**
+```bash
+./run_tests.sh
+```
+
+**On Windows:**
+```cmd
+.\run_tests.bat
+```
+
+**Expected Output:**
+```text
+Compiling HTTP Server and Integration Tests...
+Compilation successful. Running tests...
+Starting Integration Tests...
+Running Test: GET /                            [PASS]
+Running Test: GET /missing.txt                 [PASS]
+Running Test: PUT /                            [PASS]
+Running Test: POST /upload (Bad Data)          [PASS]
+Running Test: POST /upload (Success)           [PASS]
+==================================================
+[RESULTS] All 5 tests passed successfully! ✓
 ```
 
 ---

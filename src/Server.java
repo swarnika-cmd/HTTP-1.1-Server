@@ -19,6 +19,7 @@ public class Server {
     // Thread pool and server state
     private static volatile boolean serverRunning = true;
     private static ThreadPoolExecutor threadPool;
+    private static volatile ServerSocket activeSocket;
 
     public static void main(String[] args) {
         int port = DEFAULT_PORT;
@@ -39,8 +40,9 @@ public class Server {
         threadPool = (ThreadPoolExecutor) Executors.newFixedThreadPool(poolSize);
 
         // 3. Socket Binding and Listening (Requirement 2)
-        try (ServerSocket serverSocket = new ServerSocket(
-                port, BACKLOG, InetAddress.getByName(host))) {
+        try {
+            activeSocket = new ServerSocket(port, BACKLOG, InetAddress.getByName(host));
+            ServerSocket serverSocket = activeSocket;
             
             String serverAddress = serverSocket.getInetAddress().getHostAddress();
             int serverPort = serverSocket.getLocalPort();
@@ -112,6 +114,13 @@ public class Server {
         } catch (IOException e) {
             System.err.println("Could not start server: " + e.getMessage());
         } finally {
+            try {
+                if (activeSocket != null && !activeSocket.isClosed()) {
+                    activeSocket.close();
+                }
+            } catch (IOException e) {
+                // Ignore
+            }
             shutdownThreadPool();
         }
     }
@@ -144,19 +153,26 @@ public class Server {
     }
     
     /**
+     * Gracefully stops the server from integration tests
+     */
+    public static void stopServer() {
+        serverRunning = false;
+        try {
+            if (activeSocket != null && !activeSocket.isClosed()) {
+                activeSocket.close();
+            }
+        } catch (IOException e) {
+            // Ignore forced closure error during shutdown
+        }
+    }
+
+    /**
      *  this adds a shutdown hook for graceful server termination
      */
     private static void addShutdownHook(ServerSocket serverSocket) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            serverRunning = false;
+            stopServer();
             System.out.printf("[%s] Shutting down server...%n", getTimeStamp());
-            
-            try {
-                serverSocket.close();
-            } catch (IOException e) {
-                // Ignore
-            }
-            
             shutdownThreadPool();
         }));
     }
