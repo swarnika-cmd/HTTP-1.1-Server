@@ -41,7 +41,7 @@ public class RequestHandler implements Runnable {
                 // 2. Parse Request Line
                 String[] parts = requestLine.split(" ");
                 if (parts.length != 3) {
-                    sendErrorResponse(out, "HTTP/1.1", 400, "Bad Request", "Malformed request line.", false);
+                    HttpResponseBuilder.sendErrorResponse(out, "HTTP/1.1", 400, "Bad Request", "Malformed request line.", false, threadId);
                     break;
                 }
                 String method = parts[0];
@@ -79,7 +79,7 @@ public class RequestHandler implements Runnable {
                     handlePostRequest(path, headers, requestBody, out, httpVersion, connectionHeader);
                 } else {
                     // 405 Method Not Allowed
-                    sendErrorResponse(out, httpVersion, 405, "Method Not Allowed", "Server only supports GET and POST.", false);
+                    HttpResponseBuilder.sendErrorResponse(out, httpVersion, 405, "Method Not Allowed", "Server only supports GET and POST.", false, threadId);
                 }
 
                 requestsHandled++;
@@ -133,7 +133,7 @@ public class RequestHandler implements Runnable {
         long threadId = Thread.currentThread().getId();
         if (hostHeader == null) {
             System.out.printf("[%s] [Thread-%d] Host validation: Missing Host header ❌%n", Server.getTimeStamp(), threadId);
-            sendErrorResponse(out, httpVersion, 400, "Bad Request", "Missing Host header.", false);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 400, "Bad Request", "Missing Host header.", false, threadId);
             return false;
         }
         if (!hostHeader.equals(hostValidationTarget)) {
@@ -141,7 +141,7 @@ public class RequestHandler implements Runnable {
             // For this assignment, strict match is required.
             System.out.printf("[%s] [Thread-%d] Host validation: Host mismatch (%s vs %s) ❌%n", 
                 Server.getTimeStamp(), threadId, hostHeader, hostValidationTarget);
-            sendErrorResponse(out, httpVersion, 403, "Forbidden", "Host header does not match server address.", false);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 403, "Forbidden", "Host header does not match server address.", false, threadId);
             return false;
         }
         System.out.printf("[%s] [Thread-%d] Host validation: %s ✓%n", Server.getTimeStamp(), threadId, hostHeader);
@@ -170,85 +170,29 @@ public class RequestHandler implements Runnable {
 
             if (!canonicalPath.startsWith(baseDir)) {
                 System.out.printf("[%s] [Thread-%d] Security Violation: Path traversal blocked: %s%n", Server.getTimeStamp(), threadId, path);
-                sendErrorResponse(out, httpVersion, 403, "Forbidden", "Path traversal detected.", false);
+                HttpResponseBuilder.sendErrorResponse(out, httpVersion, 403, "Forbidden", "Path traversal detected.", false, threadId);
                 return;
             }
         } catch (IOException e) {
-            sendErrorResponse(out, httpVersion, 500, "Internal Server Error", "Could not process file path.", false);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 500, "Internal Server Error", "Could not process file path.", false, threadId);
             return;
         }
 
         // 2. File Existence Check (Requirement 9)
         if (!requestedFile.exists() || requestedFile.isDirectory()) {
-            sendErrorResponse(out, httpVersion, 404, "Not Found", "The requested resource was not found.", true);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 404, "Not Found", "The requested resource was not found.", true, threadId);
             return;
         }
 
-        // 3. Determine Content Type and Transfer Mode (Requirement 5)
         String fileName = requestedFile.getName();
-        String contentType;
-        boolean isBinaryDownload;
-
-        if (fileName.endsWith(".html")) {
-            contentType = "text/html; charset=utf-8";
-            isBinaryDownload = false;
-        } else if (fileName.endsWith(".txt") || fileName.endsWith(".png") || fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
-            contentType = "application/octet-stream";
-            isBinaryDownload = true;
-        } else {
-            sendErrorResponse(out, httpVersion, 415, "Unsupported Media Type", "File type not supported.", true);
+        if (!MimeTypeResolver.isSupportedType(fileName)) {
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 415, "Unsupported Media Type", "File type not supported.", true, threadId);
             return;
         }
         
-        // 4. Send Response Headers (200 OK)
-        long fileSize = requestedFile.length();
-        String connection = "keep-alive".equalsIgnoreCase(connectionHeader) ? "keep-alive" : "close";
+        // 3. Send Response using HttpResponseBuilder
+        HttpResponseBuilder.sendFileResponse(out, httpVersion, requestedFile, connectionHeader, threadId);
 
-        if (!requestedFile.exists() || requestedFile.isDirectory()) {
-                // ... send 404
-                return;
-            }
-            
-        // Response format is complex, build carefully.
-        StringBuilder responseHeaders = new StringBuilder();
-        responseHeaders.append(String.format("%s 200 OK\r\n", httpVersion));
-        responseHeaders.append(String.format("Content-Type: %s\r\n", contentType));
-        responseHeaders.append(String.format("Content-Length: %d\r\n", fileSize));
-        responseHeaders.append(String.format("Date: %s\r\n", getRfc1123Date()));
-        responseHeaders.append(String.format("Server: %s\r\n", Server.SERVER_NAME));
-        responseHeaders.append(String.format("Connection: %s\r\n", connection));
-
-        if (!isBinaryDownload) {
-            // Keep-Alive header for persistent connections
-            responseHeaders.append("Keep-Alive: timeout=30, max=100\r\n");
-        } else {
-            // Content-Disposition for binary download (Req 5B)
-            responseHeaders.append(String.format("Content-Disposition: attachment; filename=\"%s\"\r\n", fileName));
-        }
-        responseHeaders.append("\r\n"); // End of headers
-        
-        // Write headers to the client
-        out.write(responseHeaders.toString().getBytes());
-        
-        // 5. Transfer File Content (Binary Mode) (Req 5B)
-        try (FileInputStream fileIn = new FileInputStream(requestedFile)) {
-            byte[] buffer = new byte[8192]; 
-            int bytesRead;
-            while ((bytesRead = fileIn.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-            }
-            out.flush();
-        } catch (IOException e) {
-            System.err.printf("[%s] [Thread-%d] Error reading/sending file: %s%n", Server.getTimeStamp(), threadId, e.getMessage());
-            // An error mid-transfer means the connection is likely broken, so no error response can be sent.
-        }
-        
-        // Logging (Requirement 10)
-        System.out.printf("[%s] [Thread-%d] Sending %s: %s (%d bytes) ✓%n",
-            Server.getTimeStamp(), threadId, isBinaryDownload ? "binary file" : "HTML", fileName, fileSize);
-        System.out.printf("[%s] [Thread-%d] Response: 200 OK (%d bytes transferred)%n", Server.getTimeStamp(), threadId, fileSize);
-
-        ///extra lines to check:
         if (DEBUG) {
             System.out.printf("[%s] [Thread-%d] DEBUG: Requested file path: %s%n", Server.getTimeStamp(), threadId, requestedFile.getPath());
             System.out.printf("[%s] [Thread-%d] DEBUG: File exists: %s%n", Server.getTimeStamp(), threadId, requestedFile.exists());
@@ -262,21 +206,21 @@ public class RequestHandler implements Runnable {
         long threadId = Thread.currentThread().getId();
         
         if (!path.endsWith("/upload")) {
-            sendErrorResponse(out, httpVersion, 404, "Not Found", "POST endpoint not found.", false);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 404, "Not Found", "POST endpoint not found.", false, threadId);
             return;
         }
 
         // 1. Content-Type Check (Requirement 6)
         String contentType = headers.getOrDefault("Content-Type", "").toLowerCase();
         if (!contentType.contains("application/json")) {
-            sendErrorResponse(out, httpVersion, 415, "Unsupported Media Type", "Server only accepts application/json.", false);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 415, "Unsupported Media Type", "Server only accepts application/json.", false, threadId);
             return;
         }
 
         // 2. JSON Validation (Basic check) (Requirement 6)
         String jsonString = requestBody.trim();
         if (jsonString.isEmpty() || !jsonString.startsWith("{") || !jsonString.endsWith("}")) {
-            sendErrorResponse(out, httpVersion, 400, "Bad Request", "Invalid or missing JSON body.", false);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 400, "Bad Request", "Invalid or missing JSON body.", false, threadId);
             return;
         }
 
@@ -294,7 +238,7 @@ public class RequestHandler implements Runnable {
             fileWriter.write(jsonString);
         } catch (IOException e) {
             System.err.printf("[%s] [Thread-%d] Error saving uploaded file: %s%n", Server.getTimeStamp(), threadId, e.getMessage());
-            sendErrorResponse(out, httpVersion, 500, "Internal Server Error", "Could not save file on the server.", false);
+            HttpResponseBuilder.sendErrorResponse(out, httpVersion, 500, "Internal Server Error", "Could not save file on the server.", false, threadId);
             return;
         }
 
@@ -306,57 +250,6 @@ public class RequestHandler implements Runnable {
             "    \"filepath\": \"%s\"\r\n" +
             "}", relativePath);
 
-        String connection = "keep-alive".equalsIgnoreCase(connectionHeader) ? "keep-alive" : "close";
-
-        String response = String.format(
-            "%s 201 Created\r\n" +
-            "Content-Type: application/json\r\n" +
-            "Content-Length: %d\r\n" +
-            "Date: %s\r\n" +
-            "Server: %s\r\n" +
-            "Connection: %s\r\n" +
-            "\r\n" +
-            "%s",
-            httpVersion, responseJson.getBytes().length, getRfc1123Date(), Server.SERVER_NAME, connection, responseJson
-        );
-        out.write(response.getBytes());
-        out.flush();
-        
-        // Logging (Requirement 10)
-        System.out.printf("[%s] [Thread-%d] POST to %s. File created: %s. Response: 201 Created%n",
-            Server.getTimeStamp(), threadId, path, relativePath);
-    }
-    
-    // =============================== Error Handler ===============================
-
-    private void sendErrorResponse(OutputStream out, String httpVersion, int statusCode, String statusText, String message, boolean is404) throws IOException {
-        long threadId = Thread.currentThread().getId();
-        
-        String htmlBody = String.format("<html><body><h1>%d %s</h1><p>%s</p></body></html>", statusCode, statusText, message);
-        
-        String response = String.format(
-            "%s %d %s\r\n" +
-            "Content-Type: text/html; charset=utf-8\r\n" +
-            "Content-Length: %d\r\n" +
-            "Date: %s\r\n" +
-            "Server: %s\r\n" +
-            "Connection: close\r\n" + // Errors typically close connection
-            "\r\n" +
-            "%s",
-            httpVersion, statusCode, statusText, htmlBody.getBytes("UTF-8").length, 
-            getRfc1123Date(), Server.SERVER_NAME,
-            htmlBody
-        );
-        out.write(response.getBytes());
-        out.flush();
-
-        String statusLog = (is404 ? "File Not Found (404)" : statusText);
-        System.out.printf("[%s] [Thread-%d] Response: %d %s (%s)%n",
-            Server.getTimeStamp(), threadId, statusCode, statusText, statusLog);
-    }
-
-    // Returns date in RFC 7231 format
-    private String getRfc1123Date() {
-        return java.time.ZonedDateTime.now(java.time.ZoneId.of("GMT")).format(java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME);
+        HttpResponseBuilder.sendJsonResponse(out, httpVersion, responseJson, connectionHeader, relativePath, path, threadId);
     }
 }
