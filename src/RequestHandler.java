@@ -136,7 +136,15 @@ public class RequestHandler implements Runnable {
             HttpResponseBuilder.sendErrorResponse(out, httpVersion, 400, "Bad Request", "Missing Host header.", false, threadId);
             return false;
         }
-        if (!hostHeader.equals(hostValidationTarget)) {
+        
+        // If wildcard address (0.0.0.0 or equivalent), accept any non-null Host header.
+        // This is necessary because in cloud deployments (e.g. Render/Railway), the public domain name 
+        // won't match the internal bound IP of the container.
+        boolean isWildcardBind = hostValidationTarget.startsWith("0.0.0.0") || 
+                                 hostValidationTarget.startsWith("0:0:0:0") || 
+                                 hostValidationTarget.startsWith("::");
+                                 
+        if (!isWildcardBind && !hostHeader.equals(hostValidationTarget)) {
             // NOTE: A more flexible server would check host name against all bound interfaces
             // For this assignment, strict match is required.
             System.out.printf("[%s] [Thread-%d] Host validation: Host mismatch (%s vs %s) ❌%n", 
