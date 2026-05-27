@@ -67,7 +67,7 @@ You can deploy this server to cloud services like **Railway.app** or **Render.co
    WORKDIR /app
    COPY src/ /app/src/
    COPY resources/ /app/resources/
-   RUN mkdir -p out && javac -d out src/**/*.java
+   RUN mkdir -p out && javac -d out $(find src -name "*.java")
    EXPOSE 8080
    CMD ["java", "-cp", "out", "Server", "8080", "0.0.0.0", "10"]
    ```

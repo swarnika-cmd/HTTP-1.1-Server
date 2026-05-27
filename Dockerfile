@@ -9,7 +9,7 @@ COPY src/ /app/src/
 COPY resources/ /app/resources/
 
 # Compile the Java application into the out/ directory
-RUN mkdir -p out && javac -d out src/**/*.java
+RUN mkdir -p out && javac -d out $(find src -name "*.java")
 
 # Expose port 8080 to the host machine
 EXPOSE 8080
