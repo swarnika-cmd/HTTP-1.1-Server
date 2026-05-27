@@ -26,8 +26,19 @@ public class Server {
         String host = DEFAULT_HOST;
         int poolSize = DEFAULT_POOL_SIZE;
 
+        // Check for environment variable PORT (standard for cloud hosts like Render/Railway/Heroku)
+        String envPort = System.getenv("PORT");
+        if (envPort != null && !envPort.isEmpty()) {
+            try {
+                port = Integer.parseInt(envPort);
+                host = "0.0.0.0"; // Bind to all interfaces when running in cloud/container environment
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid PORT environment variable. Falling back to default/args.");
+            }
+        }
+
         try {
-            // 1. Parse Command Line Arguments
+            // 1. Parse Command Line Arguments (overrides environment variable if provided)
             if (args.length > 0) port = Integer.parseInt(args[0]);
             if (args.length > 1) host = args[1];
             if (args.length > 2) poolSize = Integer.parseInt(args[2]);
