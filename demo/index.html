@@ -1,0 +1,1301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTTP/1.1 Server - Interactive Visual Demo</title>
+    <meta name="description" content="An interactive web-based simulator and visualizer for the custom Java HTTP/1.1 Socket Server. Explore request parsing, thread pools, and chunked file streaming.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #0f172a;
+            --bg-surface: #1e293b;
+            --bg-terminal: #020617;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-cyan: #06b6d4;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --glow-primary: rgba(99, 102, 241, 0.15);
+            --glow-green: rgba(16, 185, 129, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            line-height: 1.5;
+            overflow-x: hidden;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-terminal);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Header */
+        header {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title-area h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-title-area p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .repo-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .repo-badge:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        /* Main Layout */
+        main {
+            max-width: 1600px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 380px 1fr 400px;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1200px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card styles */
+        .card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.08);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.75rem;
+            color: var(--text-main);
+        }
+
+        /* Input Panel */
+        .preset-select {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-main);
+            font-family: inherit;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .preset-select:focus {
+            border-color: var(--primary);
+        }
+
+        .raw-request-container {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+
+        .raw-request-textarea {
+            width: 100%;
+            height: 250px;
+            background-color: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--accent-cyan);
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            padding: 1rem;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .raw-request-textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.85rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px var(--glow-primary);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .config-group {
+            margin-top: 1.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px dashed var(--border);
+        }
+
+        .config-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .config-slider {
+            width: 100%;
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            margin-bottom: 1rem;
+        }
+
+        .config-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .config-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* Central Visualizer Panel */
+        .visualizer-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .vis-section {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+            position: relative;
+        }
+
+        .vis-section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Socket & Queue Visuals */
+        .connection-flow {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 80px;
+            position: relative;
+            padding: 0 1rem;
+        }
+
+        .client-node, .server-socket-node {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            border: 2px solid var(--border);
+            z-index: 2;
+            transition: all 0.3s;
+        }
+
+        .client-node {
+            background-color: rgba(6, 182, 212, 0.1);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
+        }
+
+        .server-socket-node {
+            background-color: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--glow-primary);
+        }
+
+        .server-socket-node.listening {
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: var(--primary); box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
+            50% { border-color: #818cf8; box-shadow: 0 0 20px rgba(99, 102, 241, 0.7); }
+            100% { border-color: var(--primary); box-shadow: 0 0 5px rgba(99, 102, 241, 0.3); }
+        }
+
+        .backlog-queue-area {
+            flex-grow: 1;
+            margin: 0 1.5rem;
+            height: 44px;
+            background: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            overflow: hidden;
+        }
+
+        .backlog-label {
+            position: absolute;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            width: 100%;
+            text-align: center;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .queued-packet {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: var(--accent-cyan);
+            margin-right: 6px;
+            animation: bounce-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: bold;
+            color: var(--bg-terminal);
+            box-shadow: 0 0 8px var(--accent-cyan);
+        }
+
+        @keyframes bounce-in {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+
+        /* Flying request packet animation path */
+        .packet-animation {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--accent-cyan);
+            position: absolute;
+            top: calc(50% - 6px);
+            left: 70px;
+            z-index: 5;
+            box-shadow: 0 0 10px var(--accent-cyan);
+        }
+
+        /* Thread Pool Visuals */
+        .thread-pool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 1rem;
+        }
+
+        .thread-node {
+            background-color: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .thread-node::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background-color: var(--text-muted);
+        }
+
+        .thread-node.idle::before {
+            background-color: var(--text-muted);
+        }
+
+        .thread-node.active::before {
+            background-color: var(--accent-green);
+            animation: pulse-left-bar 1.5s infinite;
+        }
+
+        .thread-node.active {
+            border-color: rgba(16, 185, 129, 0.4);
+            background-color: rgba(16, 185, 129, 0.03);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.05);
+        }
+
+        @keyframes pulse-left-bar {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+
+        .thread-id {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--text-main);
+        }
+
+        .thread-status {
+            font-size: 0.7rem;
+            font-family: 'Fira Code', monospace;
+            color: var(--text-muted);
+        }
+
+        .thread-node.active .thread-status {
+            color: var(--accent-green);
+            font-weight: 500;
+        }
+
+        .thread-task {
+            font-size: 0.65rem;
+            color: var(--accent-cyan);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        /* Chunked Streamer Visuals */
+        .streamer-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 80px;
+            padding: 0 1rem;
+            position: relative;
+        }
+
+        .file-storage-node {
+            width: 70px;
+            height: 55px;
+            background-color: rgba(245, 158, 11, 0.1);
+            border: 2px solid var(--accent-amber);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+            z-index: 2;
+        }
+
+        .client-receiver-node {
+            width: 70px;
+            height: 55px;
+            background-color: rgba(6, 182, 212, 0.1);
+            border: 2px solid var(--accent-cyan);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: 0 0 12px rgba(6, 182, 212, 0.15);
+            z-index: 2;
+        }
+
+        .stream-pipeline {
+            flex-grow: 1;
+            height: 8px;
+            background: var(--border);
+            margin: 0 1rem;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .stream-chunk {
+            width: 18px;
+            height: 18px;
+            background: var(--accent-amber);
+            border-radius: 3px;
+            position: absolute;
+            top: -5px;
+            box-shadow: 0 0 8px var(--accent-amber);
+            font-size: 0.6rem;
+            font-weight: bold;
+            color: var(--bg-terminal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: stream-flow 2s linear infinite;
+        }
+
+        @keyframes stream-flow {
+            0% { left: 0%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { left: 100%; opacity: 0; }
+        }
+
+        /* Console terminal */
+        .terminal-panel {
+            background-color: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            height: 250px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .terminal-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .terminal-line {
+            margin-bottom: 0.25rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .line-info { color: var(--text-muted); }
+        .line-success { color: var(--accent-green); }
+        .line-warn { color: var(--accent-amber); }
+        .line-error { color: var(--accent-red); }
+        .line-system { color: var(--primary); }
+
+        /* Output Panel */
+        .output-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .response-code-container {
+            background-color: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            max-height: 380px;
+        }
+
+        .res-header-line {
+            color: var(--accent-cyan);
+        }
+        .res-body-line {
+            color: var(--text-main);
+            margin-top: 0.5rem;
+        }
+
+        .html-preview-box {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            width: 100%;
+            height: 300px;
+            overflow: auto;
+        }
+
+        /* Metric badges */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .metric-badge {
+            background: var(--bg-terminal);
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .metric-val {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primary);
+            font-family: 'Fira Code', monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Section -->
+    <header>
+        <div class="header-title-area">
+            <h1>🚀 Java HTTP/1.1 Server</h1>
+            <p>RFC-2616 Compliant Multi-threaded Socket Server Simulator</p>
+        </div>
+        <a href="https://github.com/swarnika-cmd/HTTP-1.1-Server" target="_blank" class="repo-badge">
+            <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+            </svg>
+            GitHub Repo
+        </a>
+    </header>
+
+    <!-- Main Grid -->
+    <main>
+
+        <!-- Left: Input & Config -->
+        <div class="card">
+            <div class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                Request Composer
+            </div>
+            
+            <label class="config-label">Preset HTTP Request</label>
+            <select class="preset-select" id="presetSelect" onchange="loadPreset()">
+                <option value="get_home">GET / (Index Page)</option>
+                <option value="get_about">GET /about.html</option>
+                <option value="get_sample">GET /sample.txt (8KB Chunk Streaming)</option>
+                <option value="get_photo">GET /photo.jpg (Binary Image Download)</option>
+                <option value="post_upload">POST /upload (Valid JSON Payload)</option>
+                <option value="post_upload_bad">POST /upload (Bad Content-Type)</option>
+                <option value="get_traversal">GET /../../secret.txt (Path Traversal Protection)</option>
+                <option value="get_404">GET /missing-page.html (404 Not Found)</option>
+            </select>
+
+            <div class="raw-request-container">
+                <label class="config-label">Raw HTTP Headers</label>
+                <textarea class="raw-request-textarea" id="rawRequest" spellcheck="false"></textarea>
+            </div>
+
+            <button class="btn btn-primary" id="sendBtn" onclick="fireRequest()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                Send Socket Request
+            </button>
+
+            <!-- Configuration variables -->
+            <div class="config-group">
+                <div class="card-title" style="border: none; font-size: 0.95rem; margin-bottom: 0.5rem; padding: 0;">
+                    Server Core Configs
+                </div>
+                
+                <div class="config-label">
+                    <span>Thread Pool Max Size</span>
+                    <span id="poolVal">10 Threads</span>
+                </div>
+                <input type="range" min="2" max="15" value="10" class="config-slider" id="poolSlider" oninput="updateConfigDisplay()">
+
+                <div class="config-label">
+                    <span>Max Backlog Queue</span>
+                    <span id="queueVal">5 Connections</span>
+                </div>
+                <input type="range" min="1" max="10" value="5" class="config-slider" id="queueSlider" oninput="updateConfigDisplay()">
+
+                <div class="config-label">
+                    <span>Simulation Delay (ms)</span>
+                    <span id="delayVal">1000 ms</span>
+                </div>
+                <input type="range" min="100" max="3000" step="100" value="1000" class="config-slider" id="delaySlider" oninput="updateConfigDisplay()">
+            </div>
+        </div>
+
+        <!-- Middle: Visualizer Board -->
+        <div class="visualizer-container">
+            
+            <!-- TCP Connection & Socket Layer -->
+            <div class="vis-section">
+                <div class="vis-section-title">
+                    <span>TCP Socket & Backlog Queue</span>
+                    <span class="line-info" id="queueRatio">0 / 5 Slots</span>
+                </div>
+                <div class="connection-flow">
+                    <div class="client-node" id="clientNode">
+                        <div style="font-size: 1.25rem;">💻</div>
+                        Client
+                    </div>
+                    
+                    <div class="backlog-queue-area" id="backlogQueue">
+                        <div class="backlog-label">ThreadPool Bounded Queue (Accept queue)</div>
+                    </div>
+                    
+                    <div class="server-socket-node listening" id="socketNode">
+                        <div style="font-size: 1.25rem;">🔌</div>
+                        Port 8080
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thread Pool Visualizer -->
+            <div class="vis-section">
+                <div class="vis-section-title">
+                    <span>ThreadPoolExecutor Worker Threads</span>
+                    <span id="poolActivity" class="line-info">0 / 10 active</span>
+                </div>
+                <div class="thread-pool-grid" id="threadPoolGrid">
+                    <!-- Threads populated dynamically -->
+                </div>
+            </div>
+
+            <!-- File Streamer / Buffer -->
+            <div class="vis-section" id="streamerSection" style="display: none;">
+                <div class="vis-section-title">
+                    <span>Chunked File Streamer (Flat Heap Buffer)</span>
+                    <span class="line-warn" id="chunkCounter">Chunk #0 (0 KB)</span>
+                </div>
+                <div class="streamer-container">
+                    <div class="file-storage-node">
+                        <div style="font-size: 1.2rem;">📁</div>
+                        Disk File
+                    </div>
+                    <div class="stream-pipeline" id="streamPipeline">
+                        <!-- Chunks animated in JS -->
+                    </div>
+                    <div class="client-receiver-node">
+                        <div style="font-size: 1.2rem;">📥</div>
+                        Client OS
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal / Console Output -->
+            <div class="card" style="padding: 0.75rem;">
+                <div class="terminal-panel" id="terminal">
+                    <div class="terminal-header">
+                        <span>java.lang.System.out Log Monitor</span>
+                        <span style="color: var(--accent-green);">● ONLINE</span>
+                    </div>
+                    <div id="terminalBody">
+                        <div class="terminal-line line-system">[2026-05-28 01:39:18] HTTP Server started on http://127.0.0.1:8080</div>
+                        <div class="terminal-line line-system">[2026-05-28 01:39:18] Thread pool size: 10</div>
+                        <div class="terminal-line line-system">[2026-05-28 01:39:18] Serving files from 'resources' directory</div>
+                        <div class="terminal-line line-system">[2026-05-28 01:39:18] Press Ctrl+C to stop the server</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right: Response Output -->
+        <div class="card">
+            <div class="card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                Response Output
+            </div>
+
+            <div class="output-tabs">
+                <button class="tab-btn active" id="headersTab" onclick="switchTab('headers')">Raw Stream</button>
+                <button class="tab-btn" id="previewTab" onclick="switchTab('preview')">HTML Preview</button>
+            </div>
+
+            <div id="headersContent" class="tab-content active">
+                <div class="response-code-container">
+                    <pre><code id="rawResponseCode">No response yet. Send a request to see output.</code></pre>
+                </div>
+            </div>
+
+            <div id="previewContent" class="tab-content">
+                <iframe class="html-preview-box" id="htmlPreview" srcdoc="<p style='padding:1rem;color:#666;'>Send a GET request to render HTML contents here.</p>"></iframe>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-badge">
+                    <div class="metric-label">Status Code</div>
+                    <div class="metric-val" id="metricStatus">--</div>
+                </div>
+                <div class="metric-badge">
+                    <div class="metric-label">Transfer Size</div>
+                    <div class="metric-val" id="metricSize">--</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- JS Logic -->
+    <script>
+        // Preset request bodies
+        const presets = {
+            get_home: "GET / HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nUser-Agent: Mozilla/5.0\r\nAccept: text/html\r\nConnection: keep-alive\r\n\r\n",
+            get_about: "GET /about.html HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nUser-Agent: Mozilla/5.0\r\nAccept: text/html\r\nConnection: keep-alive\r\n\r\n",
+            get_sample: "GET /sample.txt HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n",
+            get_photo: "GET /photo.jpg HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nConnection: keep-alive\r\n\r\n",
+            post_upload: "POST /upload HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nContent-Type: application/json\r\nContent-Length: 35\r\nConnection: keep-alive\r\n\r\n{\n  \"status\": \"ok\",\n  \"value\": 42\n}",
+            post_upload_bad: "POST /upload HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nContent-Type: text/plain\r\nContent-Length: 13\r\nConnection: keep-alive\r\n\r\nHello Server!",
+            get_traversal: "GET /../../secret.txt HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nConnection: close\r\n\r\n",
+            get_404: "GET /missing-page.html HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nConnection: close\r\n\r\n"
+        };
+
+        // Server internal state
+        let threadPoolSize = 10;
+        let maxQueueSize = 5;
+        let delayMs = 1000;
+        let activeConnections = 0;
+        let queuedRequests = [];
+        let runningThreads = {};
+        let connectionCounter = 0;
+
+        // Files stored in Server "resources" dir
+        const resources = {
+            "/": `<!DOCTYPE html>
+<html>
+<head>
+    <title>HTTP Server - Home</title>
+    <style>
+        body { font-family: sans-serif; background: #6366f1; color: white; padding: 2rem; }
+        .card { background: rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 8px; }
+        a { color: #fff; padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); border-radius: 4px; text-decoration: none; margin-right: 0.5rem;}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🚀 Multi-threaded HTTP Server</h1>
+        <p>Served successfully from our simulated Java socket server.</p>
+        <br>
+        <a href="/about.html">About Page</a>
+        <a href="/sample.txt">Sample File</a>
+    </div>
+</body>
+</html>`,
+            "/about.html": `<!DOCTYPE html>
+<html>
+<head>
+    <title>About - HTTP Server</title>
+    <style>
+        body { font-family: sans-serif; background: #f43f5e; color: white; padding: 2rem; }
+        a { color: #fff; text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>About This Server</h1>
+    <p>Written entirely from scratch using sockets, streams, and thread pools.</p>
+    <a href="/">Back Home</a>
+</body>
+</html>`,
+            "/sample.txt": "This is a sample document served in chunks of bytes.\nHTTP/1.1 servers stream dynamic or file contents using flat memory footprint structures. This prevents heap saturation when transferring large items.\n" + "x".repeat(16384) + "\n[END OF FILE]"
+        };
+
+        // Initialize UI
+        window.addEventListener("DOMContentLoaded", () => {
+            loadPreset();
+            updateConfigDisplay();
+            initializeThreads();
+            
+            // Periodic Thread pool status logs
+            setInterval(() => {
+                const activeCount = Object.keys(runningThreads).length;
+                const queueCount = queuedRequests.length;
+                logToTerminal(`Thread pool status: ${activeCount}/${threadPoolSize} active, ${queueCount} queued`, "info");
+            }, 15000);
+        });
+
+        function loadPreset() {
+            const select = document.getElementById("presetSelect");
+            const val = select.value;
+            document.getElementById("rawRequest").value = presets[val];
+        }
+
+        function updateConfigDisplay() {
+            threadPoolSize = parseInt(document.getElementById("poolSlider").value);
+            maxQueueSize = parseInt(document.getElementById("queueSlider").value);
+            delayMs = parseInt(document.getElementById("delaySlider").value);
+
+            document.getElementById("poolVal").textContent = threadPoolSize + " Threads";
+            document.getElementById("queueVal").textContent = maxQueueSize + " Connections";
+            document.getElementById("delayVal").textContent = delayMs + " ms";
+
+            document.getElementById("queueRatio").textContent = `${queuedRequests.length} / ${maxQueueSize} Slots`;
+            document.getElementById("poolActivity").textContent = `${Object.keys(runningThreads).length} / ${threadPoolSize} active`;
+
+            initializeThreads();
+        }
+
+        function initializeThreads() {
+            const grid = document.getElementById("threadPoolGrid");
+            grid.innerHTML = "";
+            for (let i = 1; i <= threadPoolSize; i++) {
+                const isRunning = runningThreads[i];
+                const node = document.createElement("div");
+                node.className = `thread-node ${isRunning ? 'active' : 'idle'}`;
+                node.id = `thread-${i}`;
+                node.innerHTML = `
+                    <span class="thread-id">pool-1-thread-${i}</span>
+                    <span class="thread-status">${isRunning ? 'RUNNING' : 'IDLE'}</span>
+                    <div class="thread-task" id="thread-task-${i}">${isRunning ? runningThreads[i].route : '--'}</div>
+                `;
+                grid.appendChild(node);
+            }
+        }
+
+        function logToTerminal(message, type = "info") {
+            const body = document.getElementById("terminalBody");
+            const dateStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+            const line = document.createElement("div");
+            line.className = `terminal-line line-${type}`;
+            line.textContent = `[${dateStr}] ${message}`;
+            body.appendChild(line);
+            
+            // Auto scroll
+            const term = document.getElementById("terminal");
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function switchTab(tab) {
+            document.getElementById("headersTab").classList.toggle("active", tab === 'headers');
+            document.getElementById("previewTab").classList.toggle("active", tab === 'preview');
+            document.getElementById("headersContent").classList.toggle("active", tab === 'headers');
+            document.getElementById("previewContent").classList.toggle("active", tab === 'preview');
+        }
+
+        // Fire Request
+        function fireRequest() {
+            const rawReq = document.getElementById("rawRequest").value;
+            const lines = rawReq.split("\r\n");
+            const requestLine = lines[0];
+            const parts = requestLine.split(" ");
+            
+            if (parts.length < 3) {
+                alert("Invalid HTTP request line formatting!");
+                return;
+            }
+
+            const method = parts[0];
+            const path = parts[1];
+            
+            connectionCounter++;
+            const connId = connectionCounter;
+            const clientPort = Math.floor(Math.random() * 16383) + 49152;
+            const clientIP = `127.0.0.1:${clientPort}`;
+
+            // Create Packet animation
+            animatePacketArrival(clientIP, method, path, connId);
+        }
+
+        function animatePacketArrival(clientIP, method, path, connId) {
+            logToTerminal(`Connection from ${clientIP}`, "info");
+
+            const container = document.querySelector(".connection-flow");
+            const packet = document.createElement("div");
+            packet.className = "packet-animation";
+            packet.innerHTML = "";
+            container.appendChild(packet);
+
+            // Animate package moving left to right
+            let pos = 70;
+            const endPos = container.clientWidth - 110;
+            const interval = setInterval(() => {
+                if (pos >= endPos) {
+                    clearInterval(interval);
+                    packet.remove();
+                    processIncomingConnection(clientIP, method, path, connId);
+                } else {
+                    pos += 15;
+                    packet.style.left = pos + "px";
+                }
+            }, 30);
+        }
+
+        function processIncomingConnection(clientIP, method, path, connId) {
+            // Check backlog queue size
+            if (queuedRequests.length >= maxQueueSize) {
+                logToTerminal(`Thread pool exhausted, rejecting connection from ${clientIP}`, "error");
+                rejectConnection(clientIP, connId);
+                return;
+            }
+
+            // Put in Queue
+            const reqObject = { clientIP, method, path, connId, timestamp: Date.now() };
+            queuedRequests.push(reqObject);
+            renderQueue();
+            logToTerminal(`Warning: Thread pool saturated, queuing connection (Queue size: ${queuedRequests.length})`, "warn");
+
+            // Process next task
+            tryDispatchQueue();
+        }
+
+        function renderQueue() {
+            const queueArea = document.getElementById("backlogQueue");
+            // Clear existing packages
+            const packets = queueArea.querySelectorAll(".queued-packet");
+            packets.forEach(p => p.remove());
+
+            queuedRequests.forEach((req, idx) => {
+                const badge = document.createElement("div");
+                badge.className = "queued-packet";
+                badge.textContent = req.method[0]; // first letter
+                badge.title = `${req.method} ${req.path}`;
+                queueArea.appendChild(badge);
+            });
+
+            document.getElementById("queueRatio").textContent = `${queuedRequests.length} / ${maxQueueSize} Slots`;
+        }
+
+        function rejectConnection(clientIP, connId) {
+            // Send 503 response
+            const dateStr = new Date().toUTCString();
+            const body = `<html><head><title>503 Service Unavailable</title></head><body><h1>503 Service Unavailable</h1><p>The server is currently overloaded. Please try again in 10 seconds.</p></body></html>`;
+            const length = new TextEncoder().encode(body).length;
+            const res = `HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: ${length}\r\nConnection: close\r\nRetry-After: 10\r\nDate: ${dateStr}\r\nServer: Multi-threaded HTTP Server\r\n\r\n${body}`;
+
+            displayResponse(503, length, res, body);
+        }
+
+        function tryDispatchQueue() {
+            // Find free thread
+            const freeThreadId = findFreeThread();
+            if (freeThreadId && queuedRequests.length > 0) {
+                const req = queuedRequests.shift();
+                renderQueue();
+                
+                logToTerminal(`Connection dequeued, assigned to pool-1-thread-${freeThreadId}`, "info");
+                executeTaskOnThread(freeThreadId, req);
+            }
+        }
+
+        function findFreeThread() {
+            for (let i = 1; i <= threadPoolSize; i++) {
+                if (!runningThreads[i]) return i;
+            }
+            return null;
+        }
+
+        function executeTaskOnThread(threadId, req) {
+            runningThreads[threadId] = {
+                route: `${req.method} ${req.path}`,
+                req: req
+            };
+            
+            document.getElementById("poolActivity").textContent = `${Object.keys(runningThreads).length} / ${threadPoolSize} active`;
+            
+            // Re-render single thread
+            const tNode = document.getElementById(`thread-${threadId}`);
+            tNode.className = "thread-node active";
+            tNode.querySelector(".thread-status").textContent = "RUNNING";
+            tNode.querySelector(".thread-task").textContent = `${req.method} ${req.path}`;
+
+            // Parse request and compute response
+            setTimeout(() => {
+                completeRequest(threadId, req);
+            }, delayMs);
+        }
+
+        function completeRequest(threadId, req) {
+            delete runningThreads[threadId];
+            
+            document.getElementById("poolActivity").textContent = `${Object.keys(runningThreads).length} / ${threadPoolSize} active`;
+            
+            // Re-render single thread to idle
+            const tNode = document.getElementById(`thread-${threadId}`);
+            if (tNode) {
+                tNode.className = "thread-node idle";
+                tNode.querySelector(".thread-status").textContent = "IDLE";
+                tNode.querySelector(".thread-task").textContent = "--";
+            }
+
+            // Process response builder
+            const responseData = generateResponse(req);
+            
+            logToTerminal(`[pool-1-thread-${threadId}] Response sent to ${req.clientIP} - Code ${responseData.status}`, "success");
+
+            // Display
+            displayResponse(responseData.status, responseData.size, responseData.raw, responseData.body);
+
+            // Dispatch next if any
+            tryDispatchQueue();
+        }
+
+        function generateResponse(req) {
+            const headers = [];
+            let body = "";
+            let status = 200;
+            let statusText = "OK";
+            const dateStr = new Date().toUTCString();
+
+            // Validate Host Header (Requirement 5)
+            const rawText = document.getElementById("rawRequest").value;
+            const hasHost = rawText.toLowerCase().includes("host:");
+            if (!hasHost) {
+                status = 400;
+                statusText = "Bad Request";
+                body = "<html><body><h1>400 Bad Request</h1><p>Missing required 'Host' header.</p></body></html>";
+            } 
+            // Check Path Traversal (Requirement 8)
+            else if (req.path.includes("..")) {
+                status = 403;
+                statusText = "Forbidden";
+                body = "<html><body><h1>403 Forbidden</h1><p>Directory traversal access denied.</p></body></html>";
+            }
+            // Route
+            else if (req.method === "GET") {
+                if (req.path === "/" || req.path === "/index.html") {
+                    body = resources["/"];
+                } else if (req.path === "/about.html") {
+                    body = resources["/about.html"];
+                } else if (req.path === "/sample.txt") {
+                    body = resources["/sample.txt"];
+                    // Simulate chunk streaming animation
+                    triggerChunkStreamingAnimation();
+                } else if (req.path === "/photo.jpg" || req.path === "/logo.png") {
+                    status = 200;
+                    statusText = "OK";
+                    body = "[BINARY STREAM OF IMAGE DATA - SIMULATED BYTES]";
+                } else {
+                    status = 404;
+                    statusText = "Not Found";
+                    body = "<html><body><h1>404 Not Found</h1><p>The requested file could not be found.</p></body></html>";
+                }
+            } else if (req.method === "POST" && req.path === "/upload") {
+                // Read headers for validation
+                const isJson = rawText.includes("Content-Type: application/json");
+                if (!isJson) {
+                    status = 415;
+                    statusText = "Unsupported Media Type";
+                    body = "<html><body><h1>415 Unsupported Media Type</h1><p>Expects application/json</p></body></html>";
+                } else {
+                    status = 200;
+                    statusText = "OK";
+                    body = JSON.stringify({ message: "Data received successfully", status: 200 });
+                }
+            } else {
+                status = 501;
+                statusText = "Not Implemented";
+                body = "<html><body><h1>501 Not Implemented</h1><p>Supported methods: GET, POST</p></body></html>";
+            }
+
+            const length = new TextEncoder().encode(body).length;
+            const responseHeaders = [
+                `HTTP/1.1 ${status} ${statusText}`,
+                `Date: ${dateStr}`,
+                `Server: Multi-threaded Java HTTP Server`,
+                `Content-Length: ${length}`,
+                `Content-Type: ${req.path.endsWith('.txt') ? 'text/plain' : 'text/html'}`
+            ];
+
+            // Add keep alive
+            if (rawText.includes("Connection: keep-alive")) {
+                responseHeaders.push("Connection: keep-alive");
+                responseHeaders.push("Keep-Alive: timeout=5, max=100");
+            } else {
+                responseHeaders.push("Connection: close");
+            }
+
+            const rawResponse = responseHeaders.join("\r\n") + "\r\n\r\n" + body;
+
+            return {
+                status: status,
+                size: length,
+                raw: rawResponse,
+                body: body
+            };
+        }
+
+        function triggerChunkStreamingAnimation() {
+            const section = document.getElementById("streamerSection");
+            section.style.display = "block";
+            
+            const pipeline = document.getElementById("streamPipeline");
+            pipeline.innerHTML = "";
+
+            let count = 0;
+            const maxChunks = 4;
+            const interval = setInterval(() => {
+                if (count >= maxChunks) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        section.style.display = "none";
+                    }, 2000);
+                } else {
+                    count++;
+                    document.getElementById("chunkCounter").textContent = `Chunk #${count} (${count * 8} KB)`;
+                    
+                    const chunk = document.createElement("div");
+                    chunk.className = "stream-chunk";
+                    chunk.textContent = "8KB";
+                    pipeline.appendChild(chunk);
+                    
+                    setTimeout(() => { chunk.remove(); }, 2000);
+                }
+            }, 800);
+        }
+
+        function displayResponse(status, size, raw, body) {
+            // Metrics
+            const codeEl = document.getElementById("metricStatus");
+            codeEl.textContent = status;
+            codeEl.className = "metric-val";
+            if (status >= 200 && status < 300) codeEl.style.color = "var(--accent-green)";
+            else if (status >= 300 && status < 500) codeEl.style.color = "var(--accent-amber)";
+            else codeEl.style.color = "var(--accent-red)";
+
+            document.getElementById("metricSize").textContent = (size / 1024).toFixed(2) + " KB";
+
+            // Headers & Body raw tab
+            const rawOut = document.getElementById("rawResponseCode");
+            rawOut.textContent = raw;
+
+            // HTML Preview
+            const iframe = document.getElementById("htmlPreview");
+            if (raw.includes("Content-Type: text/html")) {
+                iframe.srcdoc = body;
+            } else {
+                iframe.srcdoc = `<pre style="font-family:monospace;white-space:pre-wrap;color:#333;padding:1rem;">${body}</pre>`;
+            }
+        }
+    </script>
+</body>
+</html>

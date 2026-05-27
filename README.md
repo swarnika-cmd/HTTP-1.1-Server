@@ -41,6 +41,40 @@ RequestHandler (per thread)
 
 ---
 
+## Live Demo
+
+There are three ways to demo and experience this HTTP/1.1 Server:
+
+### 1. Interactive Browser-Based Simulator (Recommended)
+We have built a gorgeous, interactive browser visualizer that simulates this Java HTTP server's thread pool, backlog queue, request parser, and chunked streaming in real time.
+* **Live Link:** `https://swarnika-cmd.github.io/HTTP-1.1-Server/demo/index.html` *(To enable this, deploy the `/demo` folder to GitHub Pages in your repo settings)*
+* Explore how the server handles HTTP keep-alive, logs connection requests, visualizes the thread pool, and manages server configurations like thread count and backlog queue limits.
+
+### 2. Expose Local Instance (ngrok)
+If you are running the Java server locally and want to show a live demo to someone remotely:
+1. Run the server locally on port `8080`.
+2. Install and run **ngrok**:
+   ```bash
+   ngrok http 8080
+   ```
+3. Share the generated public HTTPS URL (e.g., `https://xxxx.ngrok-free.app`) with your client/tester.
+
+### 3. Deploy the Real Java Server to the Cloud (Docker)
+You can deploy this server to cloud services like **Railway.app** or **Render.com** using Docker:
+1. Create a `Dockerfile` at the root of the project:
+   ```dockerfile
+   FROM eclipse-temurin:17-jdk-jammy
+   WORKDIR /app
+   COPY src/ /app/src/
+   COPY resources/ /app/resources/
+   RUN mkdir -p out && javac -d out src/**/*.java
+   EXPOSE 8080
+   CMD ["java", "-cp", "out", "Server", "8080", "0.0.0.0", "10"]
+   ```
+2. Link your GitHub repository to Railway or Render, and it will build and expose the TCP port automatically.
+
+---
+
 ## Quick start
 
 ```bash
