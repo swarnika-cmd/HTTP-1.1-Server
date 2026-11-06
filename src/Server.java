@@ -12,6 +12,7 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -23,8 +24,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * Sets up the listening socket and the worker threads.
  *
  * One "acceptor" thread accepts connections and hands each one to the
- * executor: a fixed pool with a bounded queue. When both are full the
- * connection is answered with 503 right away.
+ * executor. In platform mode the executor is a fixed pool with a bounded queue;
+ * when both are full the connection is answered with 503 right away.
  */
 public class Server {
     private final ServerConfig config;
@@ -80,12 +81,19 @@ public class Server {
         acceptThread.start();
 
         log("HTTP server listening on http://%s:%d", config.host, getPort());
-        log("Thread pool: %d workers, queue capacity %d", config.threads, config.queueCapacity);
-        if (config.statsIntervalSeconds > 0) startStatsThread();
+        if (config.isVirtualMode()) {
+            log("Mode: virtual threads (one per connection, no queue limit)");
+        } else {
+            log("Mode: platform threads (%d workers, queue capacity %d)", config.threads, config.queueCapacity);
+            if (config.statsIntervalSeconds > 0) startStatsThread();
+        }
         log("Serving files from '%s', uploads go to '%s'", config.webRoot, config.uploadDir);
     }
 
     private ExecutorService createExecutor() {
+        if (config.isVirtualMode()) {
+            return Executors.newVirtualThreadPerTaskExecutor();
+        }
         // A fixed number of workers plus a bounded waiting queue. When both are full,
         // AbortPolicy makes execute() throw RejectedExecutionException immediately,
         // and we answer 503 instead of letting connections pile up without limit.

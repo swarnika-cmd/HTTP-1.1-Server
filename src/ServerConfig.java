@@ -15,7 +15,8 @@ public class ServerConfig {
     int port = 8080;
     int backlog = 128;
 
-    // Worker pool
+    // "platform" = bounded pool of platform threads, "virtual" = one virtual thread per connection
+    String mode = "platform";
     int threads = 64;
     int queueCapacity = 128;
 
@@ -40,6 +41,10 @@ public class ServerConfig {
     int statsIntervalSeconds = 30; // 0 disables the periodic pool status line
     boolean quiet = false;         // tests turn off the startup/shutdown messages
 
+    boolean isVirtualMode() {
+        return "virtual".equals(mode);
+    }
+
     /** Builds a config from environment variables and command line flags (flags win). */
     static ServerConfig load(Map<String, String> env, String[] args) {
         ServerConfig config = new ServerConfig();
@@ -51,6 +56,7 @@ public class ServerConfig {
             config.host = "0.0.0.0";
         }
         if (env.containsKey("HOST")) config.host = env.get("HOST");
+        if (env.containsKey("SERVER_MODE")) config.mode = env.get("SERVER_MODE");
         if (env.containsKey("THREADS")) config.threads = parseInt("THREADS", env.get("THREADS"));
         if (env.containsKey("QUEUE_CAPACITY")) config.queueCapacity = parseInt("QUEUE_CAPACITY", env.get("QUEUE_CAPACITY"));
         if (env.containsKey("WEB_ROOT")) config.webRoot = Path.of(env.get("WEB_ROOT"));
@@ -71,6 +77,7 @@ public class ServerConfig {
             switch (name) {
                 case "host" -> config.host = value;
                 case "port" -> config.port = parseInt(name, value);
+                case "mode" -> config.mode = value;
                 case "threads" -> config.threads = parseInt(name, value);
                 case "queue" -> config.queueCapacity = parseInt(name, value);
                 case "web-root" -> config.webRoot = Path.of(value);
@@ -88,6 +95,9 @@ public class ServerConfig {
     }
 
     void validate() {
+        if (!mode.equals("platform") && !mode.equals("virtual")) {
+            throw new IllegalArgumentException("mode must be 'platform' or 'virtual', got: " + mode);
+        }
         if (threads < 1) throw new IllegalArgumentException("threads must be >= 1");
         if (queueCapacity < 1) throw new IllegalArgumentException("queue capacity must be >= 1");
         if (port < 0 || port > 65535) throw new IllegalArgumentException("invalid port: " + port);
@@ -109,7 +119,8 @@ public class ServerConfig {
             Usage: java -cp out Server [options]
               --host=ADDR             address to bind (default 127.0.0.1, env HOST)
               --port=N                port to listen on (default 8080, env PORT)
-              --threads=N             worker threads (default 64, env THREADS)
+              --mode=platform|virtual thread model (default platform, env SERVER_MODE)
+              --threads=N             worker threads in platform mode (default 64, env THREADS)
               --queue=N               connections waiting for a worker (default 128, env QUEUE_CAPACITY)
               --web-root=DIR          static files directory (default resources, env WEB_ROOT)
               --upload-dir=DIR        where POST /upload stores files (default uploads, env UPLOAD_DIR)
