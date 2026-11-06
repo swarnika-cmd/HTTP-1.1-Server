@@ -6,8 +6,8 @@ setup and the test runner are all in this repository.
 
 It serves static files, accepts JSON uploads, supports keep-alive and pipelining, and is
 hardened against the usual problems of a thread-per-connection server (slow clients,
-oversized requests, unbounded queues). Every behaviour listed below is covered by the test
-suite in `test/`.
+oversized requests, unbounded queues). Almost every behaviour listed below is covered by the test suite in `test/`
+(the symlink-escape check in the static handler is not tested yet).
 
 ## Features
 
