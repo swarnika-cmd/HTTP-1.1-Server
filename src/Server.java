@@ -1,28 +1,35 @@
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Sets up the listening socket and the worker threads.
  *
  * One "acceptor" thread accepts connections and hands each one to the
- * executor (a fixed size thread pool).
+ * executor: a fixed pool with a bounded queue. When both are full the
+ * connection is answered with 503 right away.
  */
 public class Server {
     private final ServerConfig config;
     private final Set<Socket> openConnections = ConcurrentHashMap.newKeySet();
+    private final AtomicLong rejectedConnections = new AtomicLong();
 
     private ServerSocket serverSocket;
     private ExecutorService workers;
@@ -79,7 +86,15 @@ public class Server {
     }
 
     private ExecutorService createExecutor() {
-        return Executors.newFixedThreadPool(config.threads, namedThreadFactory("worker-"));
+        // A fixed number of workers plus a bounded waiting queue. When both are full,
+        // AbortPolicy makes execute() throw RejectedExecutionException immediately,
+        // and we answer 503 instead of letting connections pile up without limit.
+        return new ThreadPoolExecutor(
+            config.threads, config.threads,
+            0L, TimeUnit.MILLISECONDS,
+            new ArrayBlockingQueue<>(config.queueCapacity),
+            namedThreadFactory("worker-"),
+            new ThreadPoolExecutor.AbortPolicy());
     }
 
     private void acceptLoop() {
@@ -94,7 +109,33 @@ public class Server {
             }
 
             openConnections.add(client);
-            workers.execute(new RequestHandler(client, config, staticFiles, uploads, openConnections));
+            try {
+                workers.execute(new RequestHandler(client, config, staticFiles, uploads, openConnections));
+            } catch (RejectedExecutionException e) {
+                rejectedConnections.incrementAndGet();
+                rejectWith503(client);
+            }
+        }
+    }
+
+    /**
+     * Runs on the acceptor thread, so it must never block for long: a fresh
+     * socket has an empty send buffer, so writing one small response is instant.
+     */
+    private void rejectWith503(Socket client) {
+        try (client) {
+            OutputStream out = client.getOutputStream();
+            HttpResponseBuilder.sendError(out, 503, "Server is busy, please retry shortly.",
+                Map.of("Retry-After", "1"), true, false);
+            client.shutdownOutput();
+            // Throw away anything the client already sent, so closing does not reset the connection
+            InputStream in = client.getInputStream();
+            int pending = in.available();
+            if (pending > 0) in.skip(pending);
+        } catch (IOException e) {
+            // client already gone
+        } finally {
+            openConnections.remove(client);
         }
     }
 
@@ -121,7 +162,7 @@ public class Server {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        log("Server stopped.");
+        log("Server stopped. Rejected connections (503): %d", rejectedConnections.get());
     }
 
     private void awaitStop() {
@@ -136,6 +177,10 @@ public class Server {
         return serverSocket.getLocalPort();
     }
 
+    public long getRejectedConnections() {
+        return rejectedConnections.get();
+    }
+
     /** Prints the pool status every few seconds so saturation is visible in the logs. */
     private void startStatsThread() {
         ThreadPoolExecutor pool = (ThreadPoolExecutor) workers;
@@ -146,8 +191,8 @@ public class Server {
                 } catch (InterruptedException e) {
                     return;
                 }
-                log("Pool: %d/%d busy, %d queued",
-                    pool.getActiveCount(), pool.getPoolSize(), pool.getQueue().size());
+                log("Pool: %d/%d busy, %d queued, %d rejected so far",
+                    pool.getActiveCount(), pool.getPoolSize(), pool.getQueue().size(), rejectedConnections.get());
             }
         }, "pool-stats");
         stats.setDaemon(true);
