@@ -5,3 +5,6 @@ out/
 # Files written by POST /upload
 uploads/
 resources/uploads/
+
+# Output of `bash bench/run.sh --quick` (smoke runs, not real results)
+bench/results/quick/
