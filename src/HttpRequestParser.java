@@ -1,3 +1,4 @@
+import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,14 +8,16 @@ import java.io.InputStream;
  *
  * The request line and headers are read byte by byte until the empty line
  * (CRLF CRLF). Header bytes are decoded as ISO-8859-1, so one byte is always one
- * char. The body is then read as raw bytes: exactly Content-Length bytes.
- * Reading the body as bytes (not chars) is what keeps the stream
+ * char. The body is then read as raw bytes: exactly Content-Length bytes, or a
+ * chunked body. Reading the body as bytes (not chars) is what keeps the stream
  * in sync for the next request on a keep-alive connection.
  *
  * Parsing is split into readHead() and readBody() so the connection handler can
  * use different timeouts for the two phases.
  */
 public class HttpRequestParser {
+    private static final int MAX_CHUNK_LINE_BYTES = 1024;
+
     private final int maxHeaderBytes;
     private final int maxHeaderCount;
     private final long maxBodyBytes;
@@ -50,7 +53,9 @@ public class HttpRequestParser {
 
     /** Reads the body described by the headers (if any) into request.body. */
     public void readBody(InputStream in, HttpRequest request) throws IOException, HttpException {
-        if (request.contentLength > 0) {
+        if (request.chunked) {
+            request.body = readChunkedBody(in);
+        } else if (request.contentLength > 0) {
             byte[] body = in.readNBytes((int) request.contentLength);
             if (body.length < request.contentLength) {
                 throw new EOFException("Client closed the connection in the middle of the body");
@@ -142,15 +147,31 @@ public class HttpRequestParser {
         }
     }
 
-    /** Works out how long the body is. */
+    /**
+     * Works out how the body is framed and rejects anything ambiguous.
+     *
+     * If a request has both Transfer-Encoding and Content-Length we reject it
+     * instead of picking one. RFC 7230 says Transfer-Encoding wins, but when a
+     * proxy in front of us picks the other one, the two disagree about where the
+     * request ends and an attacker can hide a second request inside the body
+     * (request smuggling). Refusing the message is the safest choice.
+     */
     private void checkBodyFraming(HttpRequest request) throws HttpException {
         String transferEncoding = request.header("Transfer-Encoding");
         String contentLength = request.header("Content-Length");
 
-        if (transferEncoding != null) {
-            throw new HttpException(501, "Transfer-Encoding is not supported yet");
+        if (transferEncoding != null && contentLength != null) {
+            throw new HttpException(400, "Both Transfer-Encoding and Content-Length are present");
         }
-        if (contentLength != null) {
+        if (transferEncoding != null) {
+            if (!request.isHttp11()) {
+                throw new HttpException(400, "Transfer-Encoding is not allowed in HTTP/1.0");
+            }
+            if (!transferEncoding.equalsIgnoreCase("chunked")) {
+                throw new HttpException(501, "Only the chunked transfer coding is supported");
+            }
+            request.chunked = true;
+        } else if (contentLength != null) {
             request.contentLength = parseContentLength(contentLength);
             if (request.contentLength > maxBodyBytes) {
                 throw new HttpException(413, "Request body is larger than " + maxBodyBytes + " bytes");
@@ -179,6 +200,66 @@ public class HttpRequestParser {
             result = length;
         }
         return result;
+    }
+
+    // ------------------------------------------------------------------ chunked body
+
+    /**
+     * Decodes a chunked body:
+     *   chunk-size [;extensions] CRLF  data CRLF  ...  0 CRLF  [trailers] CRLF
+     * Chunk extensions and trailer fields are read and ignored.
+     */
+    private byte[] readChunkedBody(InputStream in) throws IOException, HttpException {
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        long total = 0;
+
+        while (true) {
+            String sizeLine = readLimitedLine(in, MAX_CHUNK_LINE_BYTES);
+            int semicolon = sizeLine.indexOf(';');
+            String hex = (semicolon >= 0 ? sizeLine.substring(0, semicolon) : sizeLine).trim();
+            if (hex.isEmpty() || hex.length() > 15 || !hex.matches("[0-9a-fA-F]+")) {
+                throw new HttpException(400, "Invalid chunk size");
+            }
+            long size = Long.parseLong(hex, 16);
+            if (size == 0) {
+                break; // last chunk
+            }
+            total += size;
+            if (total > maxBodyBytes) {
+                throw new HttpException(413, "Request body is larger than " + maxBodyBytes + " bytes");
+            }
+            byte[] data = in.readNBytes((int) size);
+            if (data.length < size) {
+                throw new EOFException("Client closed the connection in the middle of a chunk");
+            }
+            body.write(data);
+            if (in.read() != '\r' || in.read() != '\n') {
+                throw new HttpException(400, "Chunk data must be followed by CRLF");
+            }
+        }
+
+        // Trailer section: zero or more header lines, then an empty line.
+        // We do not use trailers, but they count against the header size limit.
+        headerBytesLeft = maxHeaderBytes;
+        while (true) {
+            String trailer = readLine(in, 431);
+            if (trailer == null) {
+                throw new EOFException("Client closed the connection in the trailer section");
+            }
+            if (trailer.isEmpty()) break;
+        }
+        return body.toByteArray();
+    }
+
+    private String readLimitedLine(InputStream in, int limit) throws IOException, HttpException {
+        int saved = headerBytesLeft;
+        headerBytesLeft = limit;
+        String line = readLine(in, 400);
+        headerBytesLeft = saved;
+        if (line == null) {
+            throw new EOFException("Client closed the connection in the middle of a chunked body");
+        }
+        return line;
     }
 
     // ------------------------------------------------------------------ low level helpers

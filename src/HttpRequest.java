@@ -11,8 +11,9 @@ public class HttpRequest {
     // headers.get("content-length") and headers.get("Content-Length") are the same.
     final Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
 
-    // Body length from Content-Length, filled in by the parser
+    // How the body is framed, filled in by the parser
     long contentLength = 0;
+    boolean chunked = false;
 
     byte[] body = new byte[0];
 
