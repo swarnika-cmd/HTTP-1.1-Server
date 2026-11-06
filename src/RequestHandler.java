@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.Map;
 import java.util.Set;
 
@@ -36,14 +37,28 @@ public class RequestHandler implements Runnable {
     public void run() {
         OutputStream out = null;
         try {
-            socket.setSoTimeout(30_000);
-            InputStream in = new BufferedInputStream(socket.getInputStream(), 8192);
+            TimedInputStream timedIn = new TimedInputStream(socket);
+            InputStream in = new BufferedInputStream(timedIn, 8192);
             out = new BufferedOutputStream(socket.getOutputStream(), 8192);
             HttpRequestParser parser =
                 new HttpRequestParser(config.maxHeaderBytes, config.maxHeaderCount, config.maxBodyBytes);
 
             int requestsHandled = 0;
             while (true) {
+                // 1. Wait for the first byte of the next request. An idle keep-alive
+                //    connection is closed quietly after idleTimeoutMs.
+                timedIn.setReadTimeout(config.idleTimeoutMs);
+                in.mark(1);
+                try {
+                    if (in.read() == -1) break; // client closed the connection
+                } catch (SocketTimeoutException e) {
+                    break;
+                }
+                in.reset();
+
+                // 2. The request line and all headers must arrive within headerTimeoutMs,
+                //    no matter how slowly the bytes trickle in.
+                timedIn.startDeadline(config.headerTimeoutMs);
                 HttpRequest request = parser.readHead(in);
                 if (request == null) break;
 
@@ -52,6 +67,8 @@ public class RequestHandler implements Runnable {
                     throw new HttpException(400, "Missing Host header");
                 }
 
+                // 3. The body only has a per-read timeout.
+                timedIn.setReadTimeout(config.bodyReadTimeoutMs);
                 parser.readBody(in, request);
 
                 requestsHandled++;
@@ -69,8 +86,11 @@ public class RequestHandler implements Runnable {
             // The request was invalid. We do not know where the next request would
             // start, so send the error and close the connection.
             sendErrorAndClose(out, e.getStatusCode(), e.getMessage());
+        } catch (SocketTimeoutException e) {
+            // The client started a request but was too slow to finish it
+            sendErrorAndClose(out, 408, "Request took too long to arrive.");
         } catch (IOException e) {
-            // Client went away, timed out or reset the connection; nothing useful to send
+            // Client went away or reset the connection; nothing useful to send
         } finally {
             closeSocket();
         }
@@ -104,8 +124,30 @@ public class RequestHandler implements Runnable {
         if (out == null) return;
         try {
             HttpResponseBuilder.sendError(out, status, message, Map.of(), true, false);
+            lingeringClose();
         } catch (IOException e) {
             // client is already gone
+        }
+    }
+
+    /**
+     * After an error the client may still be sending (e.g. the rest of a huge
+     * body). If we close while unread data is waiting, the OS sends a TCP reset
+     * and the client can lose our error response. So we first shut down our
+     * sending side, then read and throw away input for a short time.
+     */
+    private void lingeringClose() throws IOException {
+        socket.shutdownOutput();
+        socket.setSoTimeout(config.lingerMs);
+        InputStream raw = socket.getInputStream();
+        byte[] discard = new byte[8192];
+        long end = System.nanoTime() + config.lingerMs * 1_000_000L;
+        try {
+            while (System.nanoTime() < end && raw.read(discard) != -1) {
+                // keep draining
+            }
+        } catch (SocketTimeoutException e) {
+            // done waiting
         }
     }
 
