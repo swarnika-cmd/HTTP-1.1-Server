@@ -1,0 +1,7 @@
+.git
+.github
+out
+uploads
+bench
+test
+*.md
