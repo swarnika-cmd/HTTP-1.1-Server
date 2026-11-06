@@ -4,7 +4,7 @@ HTTP Server - Sample Text File
 This is a sample text file for testing binary file downloads.
 
 The server should send this file with:
-- Content-Type: application/octet-stream
+- Content-Type: text/plain; charset=utf-8
 - Content-Disposition: attachment; filename="sample.txt"
 
 This will trigger a download in the browser rather than displaying the text.
