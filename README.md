@@ -241,6 +241,34 @@ each, and records requests/s, p50/p90/p99 latency, non-2xx responses and socket 
 5 second smoke run. On non-amd64 hosts (Apple Silicon) a native wrk image is built from
 `bench/wrk.Dockerfile`, because the `williamyeh/wrk` image is amd64 only and crashes under emulation.
 
+### Results (Nov 2026)
+
+Apple M4 Pro, Docker Desktop (Linux VM), server and wrk in separate containers with
+`--cpus=4` each, `GET /index.html` (4.7 KB). Medians of 3 runs of 20 s. Full table, environment
+and raw wrk output: [`bench/results/summary.md`](bench/results/summary.md).
+
+| mode | keep-alive | conns | req/s | p50 ms | p99 ms | non-2xx |
+|---|---|---:|---:|---:|---:|---:|
+| platform (64 threads, queue 128) | on | 100 | 157,796 | 0.27 | 57.85 | 0 |
+| virtual threads | on | 100 | 123,131 | 0.71 | 4.69 | 0 |
+| platform (64 threads, queue 128) | on | 500 | 154,852 | 0.38 | 522.48 | 532,781 |
+| virtual threads | on | 500 | 113,331 | 4.48 | 8.87 | 0 |
+| platform | off | 100 | 61,106 | 1.38 | 4.49 | 0 |
+| virtual threads | off | 100 | 88,233 | 0.55 | 18.20 | 0 |
+
+What the numbers say:
+
+- **Keep-alive pins a worker per connection.** With 100 keep-alive connections and 64 platform
+  threads, 36 connections wait in the queue until a worker's connection goes idle or hits the
+  per-connection request cap. Throughput stays high but p99 jumps to ~58 ms.
+- **Virtual threads remove that queue.** Every connection gets its own (cheap) thread, so p99 at
+  100 connections drops to 4.7 ms, at ~22% lower peak throughput (more scheduling work per request).
+- **At 500 connections the bounded pool sheds load** with fast 503s, as designed; wrk counts
+  those as completed requests, so the platform req/s at 500 is not comparable. Virtual mode served
+  all 500 connections with no errors.
+- These are local numbers inside one Docker VM, where TCP connection setup is cheap. They are
+  useful for comparing the two modes on the same machine, not as absolute capacity figures.
+
 ## Project layout
 
 ```
